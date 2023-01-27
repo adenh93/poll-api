@@ -1,5 +1,9 @@
-use crate::{config::Settings, routes::health_check};
+use crate::{
+    config::{DatabaseSettings, Settings},
+    routes::health_check,
+};
 use actix_web::{dev::Server, web, App, HttpServer};
+use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::net::TcpListener;
 
 pub struct Application {
@@ -10,11 +14,11 @@ pub struct Application {
 pub struct ApplicationBaseUrl(pub String);
 
 impl Application {
-    pub async fn build(config: Settings) -> std::io::Result<Self> {
+    pub async fn build(config: Settings, connection_pool: PgPool) -> std::io::Result<Self> {
         let address = format!("{}:{}", config.application.host, config.application.port);
         let listener = TcpListener::bind(address)?;
         let port = listener.local_addr().unwrap().port();
-        let server = run(listener, config.application.base_url)?;
+        let server = run(listener, connection_pool, config.application.base_url)?;
 
         Ok(Self { server, port })
     }
@@ -28,13 +32,30 @@ impl Application {
     }
 }
 
-fn run(listener: TcpListener, base_url: String) -> std::io::Result<Server> {
-    let base_url = web::Data::new(ApplicationBaseUrl(base_url));
+pub fn get_connection_pool(config: &DatabaseSettings) -> PgPool {
+    let timeout = config.timeout();
 
-    let server =
-        HttpServer::new(move || App::new().service(health_check).app_data(base_url.clone()))
-            .listen(listener)?
-            .run();
+    PgPoolOptions::new()
+        .acquire_timeout(timeout)
+        .connect_lazy_with(config.with_db())
+}
+
+fn run(
+    listener: TcpListener,
+    connection_pool: PgPool,
+    base_url: String,
+) -> std::io::Result<Server> {
+    let base_url = web::Data::new(ApplicationBaseUrl(base_url));
+    let connection_pool = web::Data::new(connection_pool);
+
+    let server = HttpServer::new(move || {
+        App::new()
+            .service(health_check)
+            .app_data(base_url.clone())
+            .app_data(connection_pool.clone())
+    })
+    .listen(listener)?
+    .run();
 
     Ok(server)
 }
