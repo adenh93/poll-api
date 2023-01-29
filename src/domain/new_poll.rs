@@ -6,6 +6,7 @@ use validator::{Validate, ValidationError};
 #[derive(Debug, Validate, Serialize, Deserialize)]
 pub struct NewPoll {
     pub name: String,
+    pub description: Option<String>,
     #[validate(custom = "end_date_greater_than_utc_now")]
     pub end_date: DateTime<Utc>,
     #[validate(length(min = 2))]
@@ -29,14 +30,17 @@ mod tests {
 
     #[test]
     fn fails_to_validate_if_end_date_in_past() {
-        let name = Sentence(5..8);
+        let fake_sentence = Sentence(5..8);
 
         let choices = (0..3)
-            .map(|_| NewPollChoice { name: name.fake() })
+            .map(|_| NewPollChoice {
+                name: fake_sentence.fake(),
+            })
             .collect();
 
         let new_poll = NewPoll {
-            name: name.fake(),
+            name: fake_sentence.fake(),
+            description: fake_sentence.fake(),
             end_date: DateTimeBefore(Utc::now()).fake(),
             choices,
         };
