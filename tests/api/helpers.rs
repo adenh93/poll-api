@@ -4,7 +4,7 @@ use fake::Fake;
 use once_cell::sync::Lazy;
 use poll_api::{
     config::{get_config, DatabaseSettings},
-    domain::{new_poll::NewPoll, new_poll_choice::NewPollChoice},
+    domain::{NewPoll, NewPollChoice},
     startup::Application,
     telemetry::{get_subscriber, init_subscriber},
 };

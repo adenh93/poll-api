@@ -2,7 +2,7 @@ use crate::helpers::{generate_poll, TestApp};
 use chrono::Utc;
 use fake::faker::chrono::en::DateTimeBefore;
 use fake::Fake;
-use poll_api::domain::created_poll::CreatedPoll;
+use poll_api::domain::CreatedPoll;
 
 #[tokio::test]
 async fn fails_if_no_choices_provided() {
