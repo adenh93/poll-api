@@ -1,7 +1,33 @@
-use crate::domain::{created_poll::CreatedPoll, new_poll::NewPoll, new_poll_choice::NewPollChoice};
+use crate::domain::{CreatedPoll, NewPoll, NewPollChoice, Poll, PollChoice};
 use chrono::{DateTime, Utc};
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction};
 use uuid::Uuid;
+
+#[tracing::instrument(name = "Getting poll by id", skip(id, conn))]
+pub async fn get_poll_by_id(id: &Uuid, conn: &PgPool) -> sqlx::Result<Poll> {
+    let result = sqlx::query_as!(
+        Poll,
+        r#"
+         SELECT
+           poll.id, poll.name, poll.description, poll.created_at, poll.end_date,
+           array_agg((choice.id, choice.name, choice.created_at)) as "choices!: Vec<PollChoice>"
+           FROM poll as poll
+           LEFT OUTER JOIN poll_choice as choice
+           ON choice.poll_id = poll.id
+           WHERE poll.id = $1
+           GROUP BY poll.id
+         "#,
+        id
+    )
+    .fetch_one(conn)
+    .await
+    .map_err(|err| {
+        tracing::error!("Failed to execute query: {err:?}");
+        err
+    })?;
+
+    Ok(result)
+}
 
 #[tracing::instrument(name = "Creating new poll and choices", skip(new_poll, conn))]
 pub async fn create_new_poll_and_choices(
