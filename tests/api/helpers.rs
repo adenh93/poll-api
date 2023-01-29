@@ -1,10 +1,25 @@
+use once_cell::sync::Lazy;
 use poll_api::{
     config::{get_config, DatabaseSettings},
     startup::Application,
+    telemetry::{get_subscriber, init_subscriber},
 };
 use reqwest::Response;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
+
+static TRACING: Lazy<()> = Lazy::new(|| {
+    let default_filter_level = "info";
+    let subscriber_name = "test";
+
+    if std::env::var("TEST_LOG").is_ok() {
+        let subscriber = get_subscriber(subscriber_name, default_filter_level, std::io::stdout);
+        init_subscriber(subscriber);
+    } else {
+        let subscriber = get_subscriber(subscriber_name, default_filter_level, std::io::sink);
+        init_subscriber(subscriber);
+    }
+});
 
 pub struct TestApp {
     pub address: String,
@@ -15,6 +30,8 @@ pub struct TestApp {
 
 impl TestApp {
     pub async fn new() -> Self {
+        Lazy::force(&TRACING);
+
         let mut config = get_config().expect("Failed to load config");
         config.application.port = 0;
         config.database.database_name = Uuid::new_v4().to_string();
