@@ -3,6 +3,13 @@ name = "poll-api"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+path = "src/main.rs"
+name = "poll-api"
+
 [dependencies]
 actix-web = "4"
 tokio = { version = "1.24.2", features = ["macros", "rt-multi-thread"]}
@@ -10,6 +17,7 @@ config = "0.13.3"
 serde = { version = "1.0.152", features = ["derive"] }
 serde-aux = "4.1.2"
 secrecy = { version = "0.8", features = ["serde"] }
+uuid = { version = "1.2.2", features = ["v4", "serde"] }
 
 [dependencies.sqlx]
 version = "0.6.2"
@@ -24,3 +32,6 @@ features = [
   "offline",
   "ipnetwork",
 ]
+
+[dev-dependencies]
+reqwest = { version = "0.11.13", features = ["json"] }
