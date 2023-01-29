@@ -1,6 +1,10 @@
+use chrono::Utc;
+use fake::faker::{chrono::en::DateTimeAfter, lorem::en::Sentence};
+use fake::Fake;
 use once_cell::sync::Lazy;
 use poll_api::{
     config::{get_config, DatabaseSettings},
+    domain::{new_poll::NewPoll, new_poll_choice::NewPollChoice},
     startup::Application,
     telemetry::{get_subscriber, init_subscriber},
 };
@@ -62,6 +66,15 @@ impl TestApp {
             .await
             .expect("Failed to execute request")
     }
+
+    pub async fn post_poll(&self, new_poll: &NewPoll) -> Response {
+        self.client
+            .post(&format!("{}/polls", &self.address))
+            .json(new_poll)
+            .send()
+            .await
+            .expect("Failed to execute request")
+    }
 }
 
 async fn configure_database(config: &DatabaseSettings) -> PgPool {
@@ -84,4 +97,21 @@ async fn configure_database(config: &DatabaseSettings) -> PgPool {
         .expect("Failed to migrate the database");
 
     connection_pool
+}
+
+pub fn generate_poll(number_of_choices: usize) -> NewPoll {
+    let fake_sentence = Sentence(5..8);
+
+    let choices = (0..number_of_choices)
+        .map(|_| NewPollChoice {
+            name: fake_sentence.fake(),
+        })
+        .collect();
+
+    NewPoll {
+        name: fake_sentence.fake(),
+        description: fake_sentence.fake(),
+        end_date: DateTimeAfter(Utc::now()).fake(),
+        choices,
+    }
 }
