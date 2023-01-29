@@ -4,12 +4,24 @@ use chrono::Utc;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::{domain::new_poll::NewPoll, repositories::create_new_poll_and_choices};
+use crate::{
+    domain::NewPoll,
+    repositories::{create_new_poll_and_choices, get_poll_by_id},
+};
 
 #[tracing::instrument(name = "Fetching a poll", skip(conn))]
 #[get("/polls/{id}")]
 pub async fn get_poll(id: web::Path<Uuid>, conn: web::Data<PgPool>) -> HttpResponse {
-    HttpResponse::Ok().finish()
+    let result = get_poll_by_id(&id, &conn).await;
+
+    if let Ok(poll) = result {
+        return HttpResponse::Ok().json(poll);
+    }
+
+    match result.err() {
+        Some(sqlx::Error::RowNotFound) => HttpResponse::NotFound().finish(),
+        _ => HttpResponse::InternalServerError().finish(),
+    }
 }
 
 #[tracing::instrument(name = "Creating a poll", skip(conn))]
