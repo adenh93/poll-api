@@ -1,0 +1,69 @@
+{
+  "db": "PostgreSQL",
+  "015d8240a2f68b59680a3277b824496dcc1d58972207abb86b96e4b5efdfa34c": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Text",
+          "Text",
+          "Timestamptz",
+          "Timestamptz"
+        ]
+      }
+    },
+    "query": "\n        INSERT INTO poll (id, name, description, created_at, end_date)\n        VALUES ($1, $2, $3, $4, $5)\n        "
+  },
+  "53d94b4041d7fab2d8bd861ad24fa6840231973007dcec5e466eda64399fa06a": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "name",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "description",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 3,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "end_date",
+          "ordinal": 4,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "choices!: Vec<PollChoice>",
+          "ordinal": 5,
+          "type_info": "RecordArray"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        true,
+        false,
+        false,
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      }
+    },
+    "query": "\n         SELECT\n           poll.id, poll.name, poll.description, poll.created_at, poll.end_date,\n           array_agg((choice.id, choice.name, choice.created_at)) as \"choices!: Vec<PollChoice>\"\n           FROM poll as poll\n           LEFT OUTER JOIN poll_choice as choice\n           ON choice.poll_id = poll.id\n           WHERE poll.id = $1\n           GROUP BY poll.id\n         "
+  }
+}
