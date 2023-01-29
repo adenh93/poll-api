@@ -2,6 +2,7 @@ use poll_api::{
     config::{get_config, DatabaseSettings},
     startup::Application,
 };
+use reqwest::Response;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 
@@ -35,6 +36,14 @@ impl TestApp {
             client,
             connection_pool,
         }
+    }
+
+    pub async fn get_poll(&self, uuid: &Uuid) -> Response {
+        self.client
+            .get(&format!("{}/polls/{}", &self.address, &uuid.to_string()))
+            .send()
+            .await
+            .expect("Failed to execute request")
     }
 }
 
