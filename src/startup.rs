@@ -1,6 +1,6 @@
 use crate::{
     config::{DatabaseSettings, Settings},
-    routes::health_check,
+    routes::{get_poll, health_check},
 };
 use actix_web::{dev::Server, web, App, HttpServer};
 use sqlx::{postgres::PgPoolOptions, PgPool};
@@ -51,6 +51,7 @@ fn run(
     let server = HttpServer::new(move || {
         App::new()
             .service(health_check)
+            .service(get_poll)
             .app_data(base_url.clone())
             .app_data(connection_pool.clone())
     })
