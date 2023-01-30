@@ -2,12 +2,15 @@ use chrono::Utc;
 use fake::faker::{chrono::en::DateTimeAfter, lorem::en::Sentence};
 use fake::Fake;
 use once_cell::sync::Lazy;
+use poll_api::domain::PollChoice;
 use poll_api::{
     config::{get_config, DatabaseSettings},
     domain::{NewPoll, NewPollChoice},
     startup::Application,
     telemetry::{get_subscriber, init_subscriber},
 };
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use reqwest::Response;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
@@ -75,6 +78,19 @@ impl TestApp {
             .await
             .expect("Failed to execute request")
     }
+
+    pub async fn vote_poll(&self, poll_id: &Uuid, choice: &Uuid) -> Response {
+        self.client
+            .post(&format!(
+                "{}/polls/{}/vote/{}",
+                &self.address,
+                &poll_id.to_string(),
+                &choice.to_string()
+            ))
+            .send()
+            .await
+            .expect("Failed to execute request")
+    }
 }
 
 async fn configure_database(config: &DatabaseSettings) -> PgPool {
@@ -114,4 +130,9 @@ pub fn generate_poll(number_of_choices: usize) -> NewPoll {
         end_date: DateTimeAfter(Utc::now()).fake(),
         choices,
     }
+}
+
+pub fn pick_random_choice(choices: &Vec<PollChoice>) -> Uuid {
+    let mut rng = thread_rng();
+    choices.choose(&mut rng).unwrap().id
 }
