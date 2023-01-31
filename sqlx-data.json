@@ -65,5 +65,92 @@
       }
     },
     "query": "\n         SELECT\n           poll.id, poll.name, poll.description, poll.created_at, poll.end_date,\n           array_agg((choice.id, choice.name, choice.created_at)) as \"choices!: Vec<PollChoice>\"\n           FROM poll as poll\n           LEFT OUTER JOIN poll_choice as choice\n           ON choice.poll_id = poll.id\n           WHERE poll.id = $1\n           GROUP BY poll.id\n         "
+  },
+  "6682b33b6f35cf0afc8947dce2eba3b05a2dc91d09127be3cbdb589ece37deb9": {
+    "describe": {
+      "columns": [
+        {
+          "name": "choice_id",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "poll_id",
+          "ordinal": 1,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "vote_count",
+          "ordinal": 2,
+          "type_info": "Int8"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      }
+    },
+    "query": "\n        SELECT \n        pc.id as choice_id,\n        pc.poll_id,\n        (\n          SELECT COUNT(pv.id) \n          FROM poll_vote pv\n          WHERE pv.choice_id = pc.id\n        ) as vote_count\n        FROM poll_choice pc\n        WHERE pc.poll_id = $1\n        GROUP BY pc.poll_id, pc.id\n        ORDER BY vote_count DESC\n        "
+  },
+  "6d7e6b1b22c9edcf58780600d305b6107c8abea39fa8f1458fcfacfa6443a2e7": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "poll_id",
+          "ordinal": 1,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "choice_id",
+          "ordinal": 2,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 3,
+          "type_info": "Timestamptz"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Inet"
+        ]
+      }
+    },
+    "query": "\n        SELECT id, poll_id, choice_id, created_at\n        FROM poll_vote\n        WHERE poll_id = $1 AND ip_address = $2\n        "
+  },
+  "7cce757730b6cf90847fb0f1dcb863d3aa9b9ed796e06018ab70f6af47ad0a02": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Uuid",
+          "Uuid",
+          "Inet",
+          "Timestamptz"
+        ]
+      }
+    },
+    "query": "\n        INSERT INTO poll_vote (id, poll_id, choice_id, ip_address, created_at)\n        VALUES ($1, $2, $3, $4, $5)\n        "
   }
 }
