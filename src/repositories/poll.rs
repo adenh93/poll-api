@@ -1,4 +1,4 @@
-use crate::domain::{CreatedPoll, NewPoll, NewPollChoice, Poll, PollChoice};
+use crate::domain::{CreatedPoll, NewPoll, NewPollChoice, Poll, PollChoice, PollResults};
 use chrono::{DateTime, Utc};
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction};
 use uuid::Uuid;
@@ -98,4 +98,37 @@ pub async fn insert_poll_choices(
     })?;
 
     Ok(())
+}
+
+#[tracing::instrument(name = "Fetching poll results by id", skip(poll_id, conn))]
+pub async fn get_poll_results_by_id(
+    poll_id: &Uuid,
+    conn: &PgPool,
+) -> sqlx::Result<Vec<PollResults>> {
+    let results = sqlx::query_as!(
+        PollResults,
+        r#"
+        SELECT 
+        pc.id as choice_id,
+        pc.poll_id,
+        (
+          SELECT COUNT(pv.id) 
+          FROM poll_vote pv
+          WHERE pv.choice_id = pc.id
+        ) as vote_count
+        FROM poll_choice pc
+        WHERE pc.poll_id = $1
+        GROUP BY pc.poll_id, pc.id
+        ORDER BY vote_count DESC
+        "#,
+        poll_id
+    )
+    .fetch_all(conn)
+    .await
+    .map_err(|err| {
+        tracing::error!("Failed to execute query: {err:?}");
+        err
+    })?;
+
+    Ok(results)
 }
