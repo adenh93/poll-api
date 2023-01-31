@@ -8,7 +8,7 @@ use poll_api::domain::CreatedPoll;
 async fn fails_if_no_choices_provided() {
     let app = TestApp::new().await;
 
-    let poll = generate_poll(0);
+    let poll = generate_poll(0, false);
     let response = app.post_poll(&poll).await;
 
     assert!(response.status().is_client_error());
@@ -18,7 +18,7 @@ async fn fails_if_no_choices_provided() {
 async fn fails_if_end_date_in_past() {
     let app = TestApp::new().await;
 
-    let mut poll = generate_poll(3);
+    let mut poll = generate_poll(3, false);
     poll.end_date = DateTimeBefore(Utc::now()).fake();
 
     let response = app.post_poll(&poll).await;
@@ -30,7 +30,7 @@ async fn fails_if_end_date_in_past() {
 async fn successfully_create_a_poll() {
     let app = TestApp::new().await;
 
-    let poll = generate_poll(3);
+    let poll = generate_poll(3, false);
     let response = app.post_poll(&poll).await;
 
     assert!(response.status().is_success());
@@ -40,7 +40,7 @@ async fn successfully_create_a_poll() {
 async fn returns_a_128_bit_uuid() {
     let app = TestApp::new().await;
 
-    let poll = generate_poll(3);
+    let poll = generate_poll(3, false);
     let response = app.post_poll(&poll).await;
     let created_poll = response.json::<CreatedPoll>().await.unwrap();
 

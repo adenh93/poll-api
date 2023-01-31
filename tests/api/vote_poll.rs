@@ -5,7 +5,7 @@ use poll_api::domain::{CreatedPoll, Poll};
 async fn vote_poll_works_properly() {
     let app = TestApp::new().await;
 
-    let generated_poll = generate_poll(5);
+    let generated_poll = generate_poll(5, false);
     let response = app.post_poll(&generated_poll).await;
     let uuid = response.json::<CreatedPoll>().await.unwrap().id;
 
@@ -22,7 +22,7 @@ async fn vote_poll_works_properly() {
 async fn fails_if_client_has_already_voted_in_election() {
     let app = TestApp::new().await;
 
-    let generated_poll = generate_poll(5);
+    let generated_poll = generate_poll(5, false);
     let response = app.post_poll(&generated_poll).await;
     let uuid = response.json::<CreatedPoll>().await.unwrap().id;
 

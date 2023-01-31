@@ -15,7 +15,7 @@ async fn fails_to_get_non_existent_poll() {
 async fn gets_existing_election() {
     let app = TestApp::new().await;
 
-    let new_poll = generate_poll(3);
+    let new_poll = generate_poll(3, false);
     let response = app.post_poll(&new_poll).await;
     let created_poll = response.json::<CreatedPoll>().await.unwrap();
 
