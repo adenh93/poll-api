@@ -1,6 +1,6 @@
 use crate::{
     config::{DatabaseSettings, Settings},
-    routes::{create_poll, get_poll, health_check, vote_poll},
+    routes::{create_poll, get_poll, get_poll_results, health_check, vote_poll},
 };
 use actix_web::{dev::Server, web, App, HttpServer};
 use sqlx::{postgres::PgPoolOptions, PgPool};
@@ -54,6 +54,7 @@ fn run(
             .service(get_poll)
             .service(vote_poll)
             .service(create_poll)
+            .service(get_poll_results)
             .app_data(base_url.clone())
             .app_data(connection_pool.clone())
     })

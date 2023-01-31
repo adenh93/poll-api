@@ -2,7 +2,8 @@ use crate::{
     domain::NewPoll,
     helpers::parse_client_ip,
     repositories::{
-        create_new_poll_and_choices, get_poll_by_id, get_poll_vote_by_ip_address, insert_poll_vote,
+        create_new_poll_and_choices, get_poll_by_id, get_poll_results_by_id,
+        get_poll_vote_by_ip_address, insert_poll_vote,
     },
 };
 use actix_web::{get, post, web, HttpRequest, HttpResponse};
@@ -24,6 +25,29 @@ pub async fn get_poll(id: web::Path<Uuid>, conn: web::Data<PgPool>) -> HttpRespo
     match result.err() {
         Some(sqlx::Error::RowNotFound) => HttpResponse::NotFound().finish(),
         _ => HttpResponse::InternalServerError().finish(),
+    }
+}
+
+#[tracing::instrument(name = "Fetching poll results", skip(conn))]
+#[get("/polls/{id}/results")]
+pub async fn get_poll_results(id: web::Path<Uuid>, conn: web::Data<PgPool>) -> HttpResponse {
+    let poll = match get_poll_by_id(&id, &conn).await {
+        Ok(result) => result,
+        Err(err) => {
+            return match err {
+                sqlx::Error::RowNotFound => HttpResponse::NotFound().finish(),
+                _ => HttpResponse::InternalServerError().finish(),
+            }
+        }
+    };
+
+    if poll.end_date > Utc::now() {
+        return HttpResponse::BadRequest().finish();
+    }
+
+    match get_poll_results_by_id(&id, &conn).await {
+        Ok(results) => HttpResponse::Ok().json(results),
+        Err(_) => HttpResponse::InternalServerError().finish(),
     }
 }
 
