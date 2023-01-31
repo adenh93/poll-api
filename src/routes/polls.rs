@@ -78,6 +78,12 @@ pub async fn vote_poll(
         return HttpResponse::BadRequest().finish();
     }
 
+    let existing_choice = poll.choices.iter().find(|choice| choice.id == path.choice);
+
+    if existing_choice.is_none() {
+        return HttpResponse::BadRequest().finish();
+    }
+
     if let Ok(ip_address) = parse_client_ip(&req.connection_info().realip_remote_addr()) {
         match get_poll_vote_by_ip_address(&poll.id, &ip_address, &conn).await {
             Ok(Some(_)) => return HttpResponse::BadRequest().finish(),
