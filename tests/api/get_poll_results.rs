@@ -1,5 +1,5 @@
 use crate::helpers::{generate_poll, TestApp};
-use poll_api::domain::{Poll, PollResults};
+use poll_api::domain::{CreatedPoll, Poll, PollResults};
 
 #[tokio::test]
 async fn gets_poll_results() {
@@ -63,4 +63,19 @@ async fn poll_results_are_in_desc_order_by_vote_count() {
     let is_in_desc_order = vote_counts.iter().is_sorted_by(|a, b| b.partial_cmp(a));
 
     assert!(is_in_desc_order);
+}
+
+#[tokio::test]
+async fn fails_to_get_results_for_current_poll() {
+    const VOTE_COUNT: usize = 10;
+
+    let app = TestApp::new().await;
+
+    let generated_poll = generate_poll(5, false);
+    let response = app.post_poll(&generated_poll).await;
+    let uuid = response.json::<CreatedPoll>().await.unwrap().id;
+
+    let response = app.get_poll_results(&uuid).await;
+
+    assert!(response.status().is_client_error());
 }
