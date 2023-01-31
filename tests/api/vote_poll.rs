@@ -38,3 +38,19 @@ async fn fails_if_client_has_already_voted_in_election() {
 
     assert!(response.status().is_client_error());
 }
+
+#[tokio::test]
+async fn fails_if_attempting_to_vote_in_expired_poll() {
+    let app = TestApp::new().await;
+
+    let generated_poll = generate_poll(5, true);
+    let uuid = app.add_past_election(&generated_poll).await.unwrap().id;
+
+    let response = app.get_poll(&uuid).await;
+    let poll = response.json::<Poll>().await.unwrap();
+
+    let choice = pick_random_choice(&poll.choices);
+    let response = app.vote_poll(&poll.id, &choice).await;
+
+    assert!(response.status().is_client_error());
+}
