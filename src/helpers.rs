@@ -1,13 +1,16 @@
+use crate::errors::InternalError;
 use sqlx::types::ipnetwork::IpNetwork;
-use std::error::Error;
 
-pub fn parse_client_ip(remote_addr: &Option<&str>) -> Result<IpNetwork, Box<dyn Error>> {
-    if let Some(ip_address) = remote_addr {
-        let parsed = ip_address.parse()?;
-        return Ok(parsed);
-    }
+pub fn parse_client_ip(remote_addr: &Option<&str>) -> Result<IpNetwork, InternalError> {
+    let ip_address = remote_addr.ok_or(InternalError::ParseIpError(
+        "Failed to retrieve remote address.",
+    ))?;
 
-    Err("Unable to parse client ip".into())
+    let parsed = ip_address
+        .parse()
+        .map_err(|_| InternalError::ParseIpError("Failed to parse valid remote address."))?;
+
+    Ok(parsed)
 }
 
 #[cfg(test)]

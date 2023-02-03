@@ -1,8 +1,7 @@
+use crate::domain::PollVote;
 use chrono::Utc;
 use sqlx::{types::ipnetwork::IpNetwork, PgPool};
 use uuid::Uuid;
-
-use crate::domain::PollVote;
 
 #[tracing::instrument(
     name = "Fetch poll vote by IP Address",
@@ -24,11 +23,7 @@ pub async fn get_poll_vote_by_ip_address(
         ip_address,
     )
     .fetch_optional(conn)
-    .await
-    .map_err(|err| {
-        tracing::error!("Failed to execute query: {err:?}");
-        err
-    })?;
+    .await?;
 
     Ok(vote)
 }
@@ -57,11 +52,7 @@ pub async fn insert_poll_vote(
         Utc::now(),
     )
     .execute(conn)
-    .await
-    .map_err(|err| {
-        tracing::error!("Failed to execute query: {err:?}");
-        err
-    })?;
+    .await?;
 
     Ok(())
 }

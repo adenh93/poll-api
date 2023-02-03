@@ -1,10 +1,14 @@
-use crate::domain::{CreatedPoll, NewPoll, NewPollChoice, Poll, PollChoice, PollResults};
+use crate::{
+    domain::{CreatedPoll, NewPoll, NewPollChoice, Poll, PollChoice, PollResults},
+    errors::HttpResult,
+};
+use anyhow::Context;
 use chrono::{DateTime, Utc};
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction};
 use uuid::Uuid;
 
 #[tracing::instrument(name = "Getting poll by id", skip(id, conn))]
-pub async fn get_poll_by_id(id: &Uuid, conn: &PgPool) -> sqlx::Result<Poll> {
+pub async fn get_poll_by_id(id: &Uuid, conn: &PgPool) -> sqlx::Result<Option<Poll>> {
     let result = sqlx::query_as!(
         Poll,
         r#"
@@ -19,12 +23,8 @@ pub async fn get_poll_by_id(id: &Uuid, conn: &PgPool) -> sqlx::Result<Poll> {
          "#,
         id
     )
-    .fetch_one(conn)
-    .await
-    .map_err(|err| {
-        tracing::error!("Failed to execute query: {err:?}");
-        err
-    })?;
+    .fetch_optional(conn)
+    .await?;
 
     Ok(result)
 }
@@ -34,13 +34,23 @@ pub async fn create_new_poll_and_choices(
     new_poll: &NewPoll,
     start_date: &DateTime<Utc>,
     conn: &PgPool,
-) -> sqlx::Result<CreatedPoll> {
-    let mut tx = conn.begin().await?;
+) -> HttpResult<CreatedPoll> {
+    let mut tx = conn
+        .begin()
+        .await
+        .context("Failed to acquire a Postgres connection from the pool.")?;
 
-    let uuid = insert_poll(&new_poll, start_date, &mut tx).await?;
-    insert_poll_choices(&uuid, &new_poll.choices, &mut tx).await?;
+    let uuid = insert_poll(&new_poll, start_date, &mut tx)
+        .await
+        .context("Failed to create new poll.")?;
 
-    tx.commit().await?;
+    insert_poll_choices(&uuid, &new_poll.choices, &mut tx)
+        .await
+        .context("Failed to create poll choices")?;
+
+    tx.commit()
+        .await
+        .context("Failed to commit SQL transaction while creating new poll.")?;
 
     Ok(CreatedPoll {
         id: uuid,
@@ -68,11 +78,7 @@ pub async fn insert_poll(
         &new_poll.end_date
     )
     .execute(tx)
-    .await
-    .map_err(|err| {
-        tracing::error!("Failed to execute query: {err:?}");
-        err
-    })?;
+    .await?;
 
     Ok(uuid)
 }
@@ -92,10 +98,7 @@ pub async fn insert_poll_choices(
             .push_bind(Utc::now());
     });
 
-    builder.build().execute(tx).await.map_err(|err| {
-        tracing::error!("Failed to execute query: {err:?}");
-        err
-    })?;
+    builder.build().execute(tx).await?;
 
     Ok(())
 }
@@ -124,11 +127,7 @@ pub async fn get_poll_results_by_id(
         poll_id
     )
     .fetch_all(conn)
-    .await
-    .map_err(|err| {
-        tracing::error!("Failed to execute query: {err:?}");
-        err
-    })?;
+    .await?;
 
     Ok(results)
 }

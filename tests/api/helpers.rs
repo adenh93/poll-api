@@ -6,11 +6,11 @@ use fake::faker::{
 };
 use fake::Fake;
 use once_cell::sync::Lazy;
-use poll_api::domain::{CreatedPoll, Poll, PollChoice};
-use poll_api::repositories::create_new_poll_and_choices;
 use poll_api::{
     config::{get_config, DatabaseSettings},
-    domain::{NewPoll, NewPollChoice},
+    domain::{CreatedPoll, NewPoll, NewPollChoice, Poll, PollChoice},
+    errors::HttpResult,
+    repositories::create_new_poll_and_choices,
     startup::Application,
     telemetry::{get_subscriber, init_subscriber},
 };
@@ -110,7 +110,7 @@ impl TestApp {
             .expect("Failed to execute request")
     }
 
-    pub async fn add_past_election(&self, new_poll: &NewPoll) -> sqlx::Result<CreatedPoll> {
+    pub async fn add_past_election(&self, new_poll: &NewPoll) -> HttpResult<CreatedPoll> {
         let start_date = DateTimeBefore(new_poll.end_date).fake();
 
         let created_poll =

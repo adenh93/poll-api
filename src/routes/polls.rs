@@ -1,5 +1,6 @@
 use crate::{
     domain::NewPoll,
+    errors::{HttpError, HttpResult},
     helpers::parse_client_ip,
     repositories::{
         create_new_poll_and_choices, get_poll_by_id, get_poll_results_by_id,
@@ -8,6 +9,7 @@ use crate::{
 };
 use actix_web::{get, post, web, HttpRequest, HttpResponse};
 use actix_web_validator::Json;
+use anyhow::Context;
 use chrono::Utc;
 use serde::Deserialize;
 use sqlx::PgPool;
@@ -15,39 +17,46 @@ use uuid::Uuid;
 
 #[tracing::instrument(name = "Fetching a poll", skip(conn))]
 #[get("/polls/{id}")]
-pub async fn get_poll(id: web::Path<Uuid>, conn: web::Data<PgPool>) -> HttpResponse {
-    let result = get_poll_by_id(&id, &conn).await;
+pub async fn get_poll(id: web::Path<Uuid>, conn: web::Data<PgPool>) -> HttpResult<HttpResponse> {
+    let poll = get_poll_by_id(&id, &conn)
+        .await
+        .context("Failed to retrieve poll from database.")?;
 
-    if let Ok(poll) = result {
-        return HttpResponse::Ok().json(poll);
+    if poll.is_none() {
+        return Err(HttpError::NotFoundError(
+            "The requested poll could not be found.".into(),
+        ));
     }
 
-    match result.err() {
-        Some(sqlx::Error::RowNotFound) => HttpResponse::NotFound().finish(),
-        _ => HttpResponse::InternalServerError().finish(),
-    }
+    Ok(HttpResponse::Ok().json(poll))
 }
 
 #[tracing::instrument(name = "Fetching poll results", skip(conn))]
 #[get("/polls/{id}/results")]
-pub async fn get_poll_results(id: web::Path<Uuid>, conn: web::Data<PgPool>) -> HttpResponse {
-    let poll = match get_poll_by_id(&id, &conn).await {
-        Ok(result) => result,
-        Err(err) => {
-            return match err {
-                sqlx::Error::RowNotFound => HttpResponse::NotFound().finish(),
-                _ => HttpResponse::InternalServerError().finish(),
-            }
+pub async fn get_poll_results(
+    id: web::Path<Uuid>,
+    conn: web::Data<PgPool>,
+) -> HttpResult<HttpResponse> {
+    let poll = get_poll_by_id(&id, &conn)
+        .await
+        .context("Failed to retrieve poll from database.")?;
+
+    if let Some(poll) = poll {
+        if poll.end_date > Utc::now() {
+            return Err(HttpError::UserError(
+                "Cannot retrieve results for an active poll.",
+            ));
         }
-    };
 
-    if poll.end_date > Utc::now() {
-        return HttpResponse::BadRequest().finish();
-    }
+        let results = get_poll_results_by_id(&id, &conn)
+            .await
+            .context("Failed to retrieve poll results from database.")?;
 
-    match get_poll_results_by_id(&id, &conn).await {
-        Ok(results) => HttpResponse::Ok().json(results),
-        Err(_) => HttpResponse::InternalServerError().finish(),
+        Ok(HttpResponse::Ok().json(results))
+    } else {
+        Err(HttpError::NotFoundError(
+            "The requested poll could not be found.",
+        ))
     }
 }
 
@@ -63,54 +72,53 @@ pub async fn vote_poll(
     path: web::Path<VotePath>,
     conn: web::Data<PgPool>,
     req: HttpRequest,
-) -> HttpResponse {
-    let poll = match get_poll_by_id(&path.id, &conn).await {
-        Ok(result) => result,
-        Err(err) => {
-            return match err {
-                sqlx::Error::RowNotFound => HttpResponse::NotFound().finish(),
-                _ => HttpResponse::InternalServerError().finish(),
-            }
-        }
-    };
+) -> HttpResult<HttpResponse> {
+    let poll = get_poll_by_id(&path.id, &conn)
+        .await
+        .context("Failed to retrieve poll to cast vote.")?;
 
-    if poll.end_date < Utc::now() {
-        return HttpResponse::BadRequest().finish();
-    }
-
-    let existing_choice = poll.choices.iter().find(|choice| choice.id == path.choice);
-
-    if existing_choice.is_none() {
-        return HttpResponse::BadRequest().finish();
-    }
-
-    if let Ok(ip_address) = parse_client_ip(&req.connection_info().realip_remote_addr()) {
-        match get_poll_vote_by_ip_address(&poll.id, &ip_address, &conn).await {
-            Ok(Some(_)) => return HttpResponse::BadRequest().finish(),
-            Err(_) => return HttpResponse::InternalServerError().finish(),
-            _ => (),
-        };
-
-        if let Err(err) = insert_poll_vote(&path.id, &path.choice, &ip_address, &conn).await {
-            return match err {
-                sqlx::Error::Database(_) => HttpResponse::BadRequest().finish(),
-                _ => HttpResponse::InternalServerError().finish(),
-            };
+    if let Some(poll) = poll {
+        if poll.end_date < Utc::now() {
+            return Err(HttpError::UserError("Cannot vote in an expired poll."));
         }
 
-        return HttpResponse::Ok().finish();
-    }
+        let existing_choice = poll.choices.iter().find(|choice| choice.id == path.choice);
 
-    HttpResponse::InternalServerError().finish()
+        if existing_choice.is_none() {
+            return Err(HttpError::ValidationError(
+                "Cannot cast a vote for an invalid choice".into(),
+            ));
+        }
+
+        let ip_address = parse_client_ip(&req.connection_info().realip_remote_addr())
+            .context("Failed to parse client IP address.")?;
+
+        let poll_vote = get_poll_vote_by_ip_address(&poll.id, &ip_address, &conn)
+            .await
+            .context("Failed to retrieve existing vote from database")?;
+
+        if poll_vote.is_some() {
+            return Err(HttpError::UserError("You have already voted in this poll."));
+        }
+
+        insert_poll_vote(&path.id, &path.choice, &ip_address, &conn)
+            .await
+            .context("Failed to insert new vote into the database.")?;
+
+        Ok(HttpResponse::Ok().finish())
+    } else {
+        Err(HttpError::NotFoundError(
+            "The requested poll could not be found.",
+        ))
+    }
 }
 
 #[tracing::instrument(name = "Creating a poll", skip(conn))]
 #[post("/polls")]
-pub async fn create_poll(new_poll: Json<NewPoll>, conn: web::Data<PgPool>) -> HttpResponse {
-    let result = create_new_poll_and_choices(&new_poll, &Utc::now(), &conn).await;
-
-    match result {
-        Ok(receipt) => HttpResponse::Created().json(receipt),
-        Err(_) => HttpResponse::InternalServerError().finish(),
-    }
+pub async fn create_poll(
+    new_poll: Json<NewPoll>,
+    conn: web::Data<PgPool>,
+) -> HttpResult<HttpResponse> {
+    let receipt = create_new_poll_and_choices(&new_poll, &Utc::now(), &conn).await?;
+    Ok(HttpResponse::Created().json(receipt))
 }
