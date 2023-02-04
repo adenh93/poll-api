@@ -8,12 +8,12 @@ use crate::{
     },
 };
 use actix_web::{get, post, web, HttpRequest, HttpResponse};
-use actix_web_validator::Json;
 use anyhow::Context;
 use chrono::Utc;
 use serde::Deserialize;
 use sqlx::PgPool;
 use uuid::Uuid;
+use validator::Validate;
 
 #[tracing::instrument(name = "Fetching a poll", skip(conn))]
 #[get("/polls/{id}")]
@@ -85,8 +85,8 @@ pub async fn vote_poll(
         let existing_choice = poll.choices.iter().find(|choice| choice.id == path.choice);
 
         if existing_choice.is_none() {
-            return Err(HttpError::ValidationError(
-                "Cannot cast a vote for an invalid choice".into(),
+            return Err(HttpError::UserError(
+                "Cannot cast a vote for an invalid choice",
             ));
         }
 
@@ -116,9 +116,10 @@ pub async fn vote_poll(
 #[tracing::instrument(name = "Creating a poll", skip(conn))]
 #[post("/polls")]
 pub async fn create_poll(
-    new_poll: Json<NewPoll>,
+    new_poll: web::Json<NewPoll>,
     conn: web::Data<PgPool>,
 ) -> HttpResult<HttpResponse> {
+    new_poll.validate().map_err(HttpError::ValidationError)?;
     let receipt = create_new_poll_and_choices(&new_poll, &Utc::now(), &conn).await?;
     Ok(HttpResponse::Created().json(receipt))
 }
