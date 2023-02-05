@@ -7,6 +7,42 @@ use poll_api::domain::CreatedPoll;
 use poll_api::errors::ValidationErrorResponse;
 
 #[tokio::test]
+async fn fails_if_name_is_too_short() {
+    let app = TestApp::new().await;
+
+    let mut poll = generate_poll(5, false);
+    poll.name = (0..4).fake::<String>();
+
+    let response = app.post_poll(&poll).await;
+
+    assert!(response.status().is_client_error());
+
+    let body = response.json::<ValidationErrorResponse>().await.unwrap();
+    let first_error = body.field_errors.first().unwrap();
+
+    assert_eq!(body.field_errors.len(), 1);
+    assert_eq!(first_error.field, "name");
+}
+
+#[tokio::test]
+async fn fails_if_name_is_too_long() {
+    let app = TestApp::new().await;
+
+    let mut poll = generate_poll(5, false);
+    poll.name = (101).fake::<String>();
+
+    let response = app.post_poll(&poll).await;
+
+    assert!(response.status().is_client_error());
+
+    let body = response.json::<ValidationErrorResponse>().await.unwrap();
+    let first_error = body.field_errors.first().unwrap();
+
+    assert_eq!(body.field_errors.len(), 1);
+    assert_eq!(first_error.field, "name");
+}
+
+#[tokio::test]
 async fn fails_if_no_choices_provided() {
     let app = TestApp::new().await;
 
@@ -23,10 +59,26 @@ async fn fails_if_no_choices_provided() {
 }
 
 #[tokio::test]
-async fn fails_if_less_than_two_choices_provided() {
+async fn fails_if_two_few_choices_provided() {
     let app = TestApp::new().await;
 
     let poll = generate_poll(1, false);
+    let response = app.post_poll(&poll).await;
+
+    assert!(response.status().is_client_error());
+
+    let body = response.json::<ValidationErrorResponse>().await.unwrap();
+    let first_error = body.field_errors.first().unwrap();
+
+    assert_eq!(body.field_errors.len(), 1);
+    assert_eq!(first_error.field, "choices");
+}
+
+#[tokio::test]
+async fn fails_if_too_many_choices_provided() {
+    let app = TestApp::new().await;
+
+    let poll = generate_poll(21, false);
     let response = app.post_poll(&poll).await;
 
     assert!(response.status().is_client_error());

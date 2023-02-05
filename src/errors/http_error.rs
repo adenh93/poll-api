@@ -62,13 +62,12 @@ impl From<&validator::ValidationErrors> for ValidationErrorResponse {
             .iter()
             .map(|(key, value)| ValidationFieldError {
                 field: key.to_string(),
-                errors: value.iter().map(|e| e.code.to_string()).collect(),
+                errors: value.iter().map(|e| e.to_string()).collect(),
             })
             .collect();
 
         Self {
             name: "ValidationError".into(),
-            message: err.to_string(),
             field_errors,
         }
     }
@@ -92,7 +91,6 @@ impl From<&HttpError> for GenericErrorResponse {
 #[derive(Serialize, Deserialize)]
 pub struct ValidationErrorResponse {
     pub name: String,
-    pub message: String,
     pub field_errors: Vec<ValidationFieldError>,
 }
 
