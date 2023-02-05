@@ -1,8 +1,10 @@
 use crate::helpers::{generate_poll, TestApp};
+use actix_web::http::StatusCode;
 use chrono::Utc;
 use fake::faker::chrono::en::DateTimeBefore;
 use fake::Fake;
 use poll_api::domain::CreatedPoll;
+use poll_api::errors::ValidationErrorResponse;
 
 #[tokio::test]
 async fn fails_if_no_choices_provided() {
@@ -23,7 +25,12 @@ async fn fails_if_end_date_in_past() {
 
     let response = app.post_poll(&poll).await;
 
-    assert!(response.status().is_client_error());
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+    let body = response.json::<ValidationErrorResponse>().await.unwrap();
+    let field_error = body.field_errors.first().unwrap();
+
+    assert_eq!(field_error.field, "end_date");
 }
 
 #[tokio::test]

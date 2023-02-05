@@ -1,6 +1,6 @@
 use super::error_chain_fmt;
 use actix_web::{http::StatusCode, HttpResponse, ResponseError};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 pub type HttpResult<T> = Result<T, HttpError>;
 
@@ -89,14 +89,14 @@ impl From<&HttpError> for GenericErrorResponse {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ValidationErrorResponse {
     pub name: String,
     pub message: String,
     pub field_errors: Vec<ValidationFieldError>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ValidationFieldError {
     pub field: String,
     pub errors: Vec<String>,
