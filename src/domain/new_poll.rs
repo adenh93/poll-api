@@ -5,17 +5,25 @@ use validator::{Validate, ValidationError};
 
 #[derive(Debug, Validate, Serialize, Deserialize)]
 pub struct NewPoll {
+    #[validate(length(
+        min = 5,
+        max = 100,
+        message = "Poll name must be between 5 and 100 characters."
+    ))]
     pub name: String,
     pub description: Option<String>,
-    #[validate(custom = "end_date_greater_than_utc_now")]
+    #[validate(custom(
+        function = "end_date_greater_than_utc_now",
+        message = "End date must be in the future."
+    ))]
     pub end_date: DateTime<Utc>,
-    #[validate(length(min = 2))]
+    #[validate(length(min = 2, max = 20, message = "Must provide between 2 to 20 choices."))]
     pub choices: Vec<NewPollChoice>,
 }
 
 fn end_date_greater_than_utc_now(end_date: &DateTime<Utc>) -> Result<(), ValidationError> {
     if *end_date < Utc::now() {
-        return Err(ValidationError::new("End date must be in the future"));
+        return Err(ValidationError::new("end_date"));
     }
 
     Ok(())
