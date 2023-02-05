@@ -14,6 +14,28 @@ async fn fails_if_no_choices_provided() {
     let response = app.post_poll(&poll).await;
 
     assert!(response.status().is_client_error());
+
+    let body = response.json::<ValidationErrorResponse>().await.unwrap();
+    let first_error = body.field_errors.first().unwrap();
+
+    assert_eq!(body.field_errors.len(), 1);
+    assert_eq!(first_error.field, "choices");
+}
+
+#[tokio::test]
+async fn fails_if_less_than_two_choices_provided() {
+    let app = TestApp::new().await;
+
+    let poll = generate_poll(1, false);
+    let response = app.post_poll(&poll).await;
+
+    assert!(response.status().is_client_error());
+
+    let body = response.json::<ValidationErrorResponse>().await.unwrap();
+    let first_error = body.field_errors.first().unwrap();
+
+    assert_eq!(body.field_errors.len(), 1);
+    assert_eq!(first_error.field, "choices");
 }
 
 #[tokio::test]
@@ -28,9 +50,10 @@ async fn fails_if_end_date_in_past() {
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 
     let body = response.json::<ValidationErrorResponse>().await.unwrap();
-    let field_error = body.field_errors.first().unwrap();
+    let first_error = body.field_errors.first().unwrap();
 
-    assert_eq!(field_error.field, "end_date");
+    assert_eq!(body.field_errors.len(), 1);
+    assert_eq!(first_error.field, "end_date");
 }
 
 #[tokio::test]
