@@ -2,7 +2,10 @@ use crate::{
     config::{DatabaseSettings, Settings},
     routes::{create_poll, get_poll, get_poll_results, health_check, vote_poll},
 };
-use actix_web::{dev::Server, web, App, HttpServer};
+use actix_web::{
+    dev::Server, error::JsonPayloadError, web, App, HttpRequest, HttpResponse, HttpServer,
+};
+use serde::Serialize;
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::net::TcpListener;
 
@@ -48,8 +51,13 @@ fn run(
     let base_url = web::Data::new(ApplicationBaseUrl(base_url));
     let connection_pool = web::Data::new(connection_pool);
 
+    let json_config = web::JsonConfig::default()
+        .limit(4096)
+        .error_handler(json_error_handler);
+
     let server = HttpServer::new(move || {
         App::new()
+            .app_data(json_config.clone())
             .service(health_check)
             .service(get_poll)
             .service(vote_poll)
@@ -62,4 +70,24 @@ fn run(
     .run();
 
     Ok(server)
+}
+
+fn json_error_handler(err: JsonPayloadError, _req: &HttpRequest) -> actix_web::Error {
+    actix_web::error::InternalError::from_response(
+        "",
+        HttpResponse::Conflict().json(JsonErrorResponse::from(err)),
+    )
+    .into()
+}
+
+#[derive(Debug, Serialize)]
+struct JsonErrorResponse {
+    message: String,
+}
+
+impl From<JsonPayloadError> for JsonErrorResponse {
+    fn from(value: JsonPayloadError) -> Self {
+        let message = value.to_string();
+        Self { message }
+    }
 }
