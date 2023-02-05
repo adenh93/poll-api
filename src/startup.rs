@@ -57,7 +57,6 @@ fn run(
 
     let server = HttpServer::new(move || {
         App::new()
-            .app_data(json_config.clone())
             .service(health_check)
             .service(get_poll)
             .service(vote_poll)
@@ -65,6 +64,7 @@ fn run(
             .service(get_poll_results)
             .app_data(base_url.clone())
             .app_data(connection_pool.clone())
+            .app_data(json_config.clone())
     })
     .listen(listener)?
     .run();
@@ -75,7 +75,7 @@ fn run(
 fn json_error_handler(err: JsonPayloadError, _req: &HttpRequest) -> actix_web::Error {
     actix_web::error::InternalError::from_response(
         "",
-        HttpResponse::Conflict().json(JsonErrorResponse::from(err)),
+        HttpResponse::BadRequest().json(JsonErrorResponse::from(err)),
     )
     .into()
 }

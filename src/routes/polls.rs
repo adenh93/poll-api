@@ -3,8 +3,8 @@ use crate::{
     errors::{HttpError, HttpResult},
     helpers::parse_client_ip,
     repositories::{
-        create_new_poll_and_choices, get_poll_by_id, get_poll_results_by_id,
-        get_poll_vote_by_ip_address, insert_poll_vote,
+        poll::{create_new_poll_and_choices, get_poll_by_id, get_poll_results_by_id},
+        poll_vote::{get_poll_vote_by_ip_address, insert_poll_vote},
     },
 };
 use actix_web::{get, post, web, HttpRequest, HttpResponse};

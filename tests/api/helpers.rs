@@ -10,7 +10,7 @@ use poll_api::{
     config::{get_config, DatabaseSettings},
     domain::{CreatedPoll, NewPoll, NewPollChoice, Poll, PollChoice},
     errors::HttpResult,
-    repositories::create_new_poll_and_choices,
+    repositories::poll::create_new_poll_and_choices,
     startup::Application,
     telemetry::{get_subscriber, init_subscriber},
 };
