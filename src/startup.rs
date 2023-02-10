@@ -2,8 +2,9 @@ use crate::{
     config::{DatabaseSettings, Settings},
     routes::{create_poll, get_poll, get_poll_results, health_check, vote_poll},
 };
+use actix_cors::Cors;
 use actix_web::{
-    dev::Server, error::JsonPayloadError, web, App, HttpRequest, HttpResponse, HttpServer,
+    dev::Server, error::JsonPayloadError, http, web, App, HttpRequest, HttpResponse, HttpServer,
 };
 use serde::Serialize;
 use sqlx::{postgres::PgPoolOptions, PgPool};
@@ -21,7 +22,12 @@ impl Application {
         let address = format!("{}:{}", config.application.host, config.application.port);
         let listener = TcpListener::bind(address)?;
         let port = listener.local_addr().unwrap().port();
-        let server = run(listener, connection_pool, config.application.base_url)?;
+        let server = run(
+            listener,
+            connection_pool,
+            config.application.base_url,
+            config.application.allowed_origin,
+        )?;
 
         Ok(Self { server, port })
     }
@@ -47,6 +53,7 @@ fn run(
     listener: TcpListener,
     connection_pool: PgPool,
     base_url: String,
+    allowed_origin: String,
 ) -> std::io::Result<Server> {
     let base_url = web::Data::new(ApplicationBaseUrl(base_url));
     let connection_pool = web::Data::new(connection_pool);
@@ -56,7 +63,14 @@ fn run(
         .error_handler(json_error_handler);
 
     let server = HttpServer::new(move || {
+        let cors = Cors::default()
+            .allowed_origin(&allowed_origin)
+            .allowed_methods(vec!["POST", "GET"])
+            .allowed_header(http::header::CONTENT_TYPE)
+            .max_age(3600);
+
         App::new()
+            .wrap(cors)
             .service(health_check)
             .service(get_poll)
             .service(vote_poll)
