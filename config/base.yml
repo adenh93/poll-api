@@ -1,5 +1,6 @@
 application:
   port: 8000
+  allowed_origin: "http://localhost:5173"
 database:
   host: "localhost"
   port: 5432
