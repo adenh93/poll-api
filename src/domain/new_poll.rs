@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
 
 #[derive(Debug, Validate, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NewPoll {
     #[validate(length(
         min = 5,
