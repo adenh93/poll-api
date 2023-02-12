@@ -105,7 +105,7 @@ async fn fails_if_end_date_in_past() {
     let first_error = body.field_errors.first().unwrap();
 
     assert_eq!(body.field_errors.len(), 1);
-    assert_eq!(first_error.field, "end_date");
+    assert_eq!(first_error.field, "endDate");
 }
 
 #[tokio::test]

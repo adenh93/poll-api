@@ -1,5 +1,6 @@
 use super::error_chain_fmt;
 use actix_web::{http::StatusCode, HttpResponse, ResponseError};
+use heck::ToLowerCamelCase;
 use serde::{Deserialize, Serialize};
 
 pub type HttpResult<T> = Result<T, HttpError>;
@@ -61,7 +62,7 @@ impl From<&validator::ValidationErrors> for ValidationErrorResponse {
             .field_errors()
             .iter()
             .map(|(key, value)| ValidationFieldError {
-                field: key.to_string(),
+                field: key.to_lower_camel_case(),
                 errors: value.iter().map(|e| e.to_string()).collect(),
             })
             .collect();
@@ -89,6 +90,7 @@ impl From<&HttpError> for GenericErrorResponse {
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ValidationErrorResponse {
     pub name: String,
     pub field_errors: Vec<ValidationFieldError>,
