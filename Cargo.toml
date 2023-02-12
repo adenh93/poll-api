@@ -28,6 +28,7 @@ secrecy = { version = "0.8", features = ["serde"] }
 thiserror = "1.0.38"
 anyhow = "1.0.68"
 actix-cors = "0.6.4"
+heck = "0.4.1"
 
 [dependencies.sqlx]
 version = "0.6.2"
