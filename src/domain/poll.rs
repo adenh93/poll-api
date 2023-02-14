@@ -5,6 +5,7 @@ use sqlx::FromRow;
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, FromRow)]
+#[serde(rename_all = "camelCase")]
 pub struct Poll {
     pub id: Uuid,
     pub name: String,
